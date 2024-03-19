@@ -1,4 +1,5 @@
 mod id;
+mod mask;
 
 use std::io;
 use std::time::{Duration, SystemTime};
