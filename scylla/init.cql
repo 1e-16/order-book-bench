@@ -1,13 +1,13 @@
 CREATE KEYSPACE IF NOT EXISTS biz
-    WITH replication = {'class': 'NetworkTopologyStrategy', 'replication_factor' : 3};
+    WITH replication = {'class': 'NetworkTopologyStrategy', 'replication_factor' : 1};
 
 use biz;
 
-CREATE TYPE IF NOT EXISTS u128
-(
-    high bigint,
-    low  bigint,
-);
+-- CREATE TYPE IF NOT EXISTS u128
+-- (
+--     high bigint,
+--     low  bigint,
+-- );
 
 CREATE TABLE IF NOT EXISTS orders
 (
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS orders
     currency  text,
     initiator bigint,
     associate bigint,
-    amount    frozen<u128>,
+    amount    text,
     remark    text,
     create_at bigint,
     -- 基于关联用户查询

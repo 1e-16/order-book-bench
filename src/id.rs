@@ -65,7 +65,7 @@ impl IdGen {
         id
     }
 
-    fn current_timestamp() -> u64 {
+    pub fn current_timestamp() -> u64 {
         let start = SystemTime::now();
         let since_epoch = start.duration_since(UNIX_EPOCH).expect("SystemTime before UNIX EPOCH!");
 
