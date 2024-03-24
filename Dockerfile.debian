@@ -1,0 +1,26 @@
+# 使用最小的 Debian 作为基础镜像
+FROM debian:stable-slim
+
+# 设置工作目录为 /app
+WORKDIR /app
+
+# 复制项目文件到容器中的 /app 目录
+COPY . /app
+
+# 安装所需的构建依赖项
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl
+
+# 安装 Rust 工具链
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# 设置编译输出目录
+ENV OUTPUT_DIR="/output"
+
+# 构建项目
+RUN cargo build --release
+
+# 将编译的输出拷贝到宿主机的 output 目录中
+CMD mkdir -p $OUTPUT_DIR && cp /app/target/release/* $OUTPUT_DIR
