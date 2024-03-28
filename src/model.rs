@@ -7,7 +7,7 @@ use crate::id::IdGen;
 #[derive(Debug, EnumIter, Serialize, Deserialize)]
 #[derive(Copy, Clone)]
 #[repr(i8)]
-pub enum Direction {
+pub enum Transaction {
     // #[serde(rename = "出金")]
     Withdrawal,
     // #[serde(rename = "入金")]
@@ -31,12 +31,12 @@ pub enum Currency {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Order {
-    pub order_id: u64,
-    pub direction: Direction,
-    pub currency: Currency,
-    pub amount: String,
-    pub remark: String,
-    pub create_at: u64,
+    pub oid: u64,
+    pub txn: Transaction,
+    pub ccy: Currency,
+    pub amt: String,
+    pub rmk: String,
+    pub ctm: u64,
 }
 
 impl Order {
@@ -44,20 +44,20 @@ impl Order {
         let mut orders = Vec::new();
 
         for _ in 0..cnt {
-            let order_id = IdGen::ins().gen();
-            let direction = fastrand::choice(Direction::iter()).unwrap();
-            let currency = fastrand::choice(Currency::iter()).unwrap();
-            let amount = fastrand::u128(1..=1_000_000_000).to_string();
-            let remark = order_id.to_string();
-            let create_at = IdGen::current_timestamp();
+            let oid = IdGen::ins().gen();
+            let txn = fastrand::choice(Transaction::iter()).unwrap();
+            let ccy = fastrand::choice(Currency::iter()).unwrap();
+            let amt = fastrand::u128(1..=1_000_000_000).to_string();
+            let rmt = oid.to_string();
+            let ctm = IdGen::current_timestamp();
 
             let order = Order {
-                order_id,
-                direction,
-                currency,
-                amount,
-                remark,
-                create_at,
+                oid,
+                txn,
+                ccy,
+                amt,
+                rmk,
+                ctm,
             };
 
             orders.push(order);
@@ -70,39 +70,101 @@ impl Order {
 #[derive(Deserialize)]
 #[derive(Debug)]
 pub struct AddOrderReq {
-    pub direction: Direction,
-    pub currency: Currency,
-    pub amount: String,
-    pub remark: String,
+    pub txn: Transaction,
+    pub ccy: Currency,
+    pub amt: String,
+    pub rmk: String,
 }
 
 pub type AddOrderRsp = Order;
 
 #[derive(Deserialize)]
 #[derive(Debug)]
-pub struct GetOrderReq {
-    // 受益人
-    pub associate: u64,
+pub struct GetOrderByOIdReq {
+    // 指定订单ID
+    pub oid: u64,
+}
+
+#[derive(Deserialize)]
+#[derive(Debug)]
+pub struct GetOrderByOIdsReq {
+    // 指定订单ID
+    pub oid: Vec<u64>,
+    // 是否反方向
+    pub reverse: bool,
+}
+
+#[derive(Deserialize)]
+#[derive(Debug)]
+pub struct GetOrderByEUReq {
+    // 终端用户
+    pub usr: u64,
 
     // 指定货币&方向
-    pub currency: Currency,
-    pub direction: Direction,
-
-    // 指定订单ID
-    pub order_id: u64,
-
-    // 订单发起者
-    pub initiator: u64,
+    pub ccy: Currency,
+    pub txn: Transaction,
 
     // 时间范围指定
-    pub time_begin: u64,
-    pub time_end: u64,
+    pub tm_start: u64,
+    pub tm_end: u64,
 
     // 批量查询选项
     // 查询数量
     pub limit: usize,
     // 从那个ID开始查起
-    pub tail_order_id: u64,
+    pub from_oid: u64,
+    // 是否反方向
+    pub reverse: bool,
+}
+
+#[derive(Deserialize)]
+#[derive(Debug)]
+pub struct GetOrderByMCHReq {
+    // 商户
+    pub mch: u64,
+
+    // 指定货币&方向
+    pub ccy: Currency,
+    pub txn: Transaction,
+
+    // 时间范围指定
+    pub tm_start: u64,
+    pub tm_end: u64,
+
+    // 批量查询选项
+    // 查询数量
+    pub limit: usize,
+    // 从那个ID开始查起
+    pub from_oid: u64,
+    // 是否反方向
+    pub reverse: bool,
+}
+
+#[derive(Deserialize)]
+#[derive(Debug)]
+pub struct GetOrderReq {
+    // 终端用户
+    pub usr: u64,
+
+    // 指定货币&方向
+    pub ccy: Currency,
+    pub txn: Transaction,
+
+    // 指定订单ID
+    pub oid: u64,
+
+    // 商户
+    pub mch: u64,
+
+    // 时间范围指定
+    pub start: u64,
+    pub end: u64,
+
+    // 批量查询选项
+    // 查询数量
+    pub limit: usize,
+    // 从那个ID开始查起
+    pub from_oid: u64,
     // 是否反方向
     pub reverse: bool,
 }

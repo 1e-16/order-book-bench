@@ -76,3 +76,7 @@ stop_and_remove_container $container_name
 
 
 #docker run -itd --name wrk --network host -v C:\Users\none1\Desktop\proj\rust\order-book-bench\wrk:/tmp --memory=8g alpine sh -c "apk add wrk && wrk -t4 -c400 -d1m -s /tmp/post_order.lua http://192.168.31.134:8081/order"
+
+
+docker run -it --network host alpine sh -c \
+"apk add wrk && wrk -t6 -c400 -d1m http://192.168.31.44:8081/order"

@@ -1,23 +1,24 @@
 use ntex::web;
+use web::types::*;
 use crate::id::IdGen;
 use crate::scylla::get_scylla_session;
 
 use crate::model::*;
 
 #[web::get("/order")]
-async fn get_order() -> Result<impl web::Responder, web::Error> {
-    let orders = Order::rand(5);
-    Ok(web::HttpResponse::Ok().json(&orders))
+async fn get_order(Query(req): Query<AddOrderReq>) -> Result<impl web::Responder, web::Error> {
+    println!("{:?}", req);
+    Ok(web::HttpResponse::Ok())
 }
 
 #[web::post("/order")]
 async fn add_order(body: String) -> Result<impl web::Responder, web::Error> {
     let req: AddOrderReq = serde_json::from_str(&body)?;
     let order_id = IdGen::ins().gen();
-    let direction = req.direction;
-    let currency = req.currency;
-    let amount = req.amount;
-    let remark = req.remark;
+    let direction = req.txn;
+    let currency = req.ccy;
+    let amount = req.amt;
+    let remark = req.rmk;
     let create_at = IdGen::current_timestamp();
 
     let session = get_scylla_session().await;
@@ -25,7 +26,7 @@ async fn add_order(body: String) -> Result<impl web::Responder, web::Error> {
         "INSERT INTO biz.orders (order_id, direction,
         currency,
         initiator,
-        associate,
+        usr,
         amount,
         remark,
         create_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -43,10 +44,10 @@ async fn add_order(body: String) -> Result<impl web::Responder, web::Error> {
     println!("{:?}", ret);
 
     let ord = AddOrderRsp {
-        order_id,
-        direction,
-        currency,
-        amount,
+        oid: order_id,
+        txn: direction,
+        ccy: currency,
+        amt: amount,
         remark,
         create_at,
     };

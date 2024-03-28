@@ -1,3 +1,3 @@
 wrk.method = "POST"
-wrk.body = '{"direction": "Deposit", "currency": "CNY", "amount": "1.01", "remark": ""}'
+wrk.body = '{"txn": "Deposit", "ccy": "CNY", "amt": "1.01", "rmk": ""}'
 wrk.headers["Content-Type"] = "application/json"
