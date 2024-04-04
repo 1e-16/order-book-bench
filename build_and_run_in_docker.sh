@@ -65,7 +65,7 @@ docker run -itd --name "$container_name" -p 8081:8081 --memory=8g order-book-ben
 container_name="wrk"
 stop_and_remove_container $container_name
 docker run -itd --name "$container_name" --network host --memory=8g alpine sh -c \
-"apk add wrk && wrk -t4 -c400 -d1m http://127.0.0.1:8081/order"
+"apk add wrk && wrk -t4 -c400 -d1m http://192.168.31.134:8081/order"
 
 docker logs -f "$container_name"
 
@@ -73,3 +73,10 @@ stop_and_remove_container $container_name
 
 container_name="order-book-bench"
 stop_and_remove_container $container_name
+
+
+#docker run -itd --name wrk --network host -v C:\Users\none1\Desktop\proj\rust\order-book-bench\wrk:/tmp --memory=8g alpine sh -c "apk add wrk && wrk -t4 -c400 -d1m -s /tmp/post_order.lua http://192.168.31.134:8081/order"
+
+
+docker run -it --network host alpine sh -c \
+"apk add wrk && wrk -t6 -c400 -d1m http://192.168.31.44:8081/order"
