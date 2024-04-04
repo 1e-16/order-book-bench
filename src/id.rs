@@ -1,32 +1,32 @@
 // snowflake.rs
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const WORKER_ID_BITS: u64 = 10;
-const SEQUENCE_BITS: u64 = 12;
+const WORKER_ID_BITS: i64 = 10;
+const SEQUENCE_BITS: i64 = 12;
 
-const MAX_WORKER_ID: u64 = (1 << WORKER_ID_BITS) - 1;
-const MAX_SEQUENCE: u64 = (1 << SEQUENCE_BITS) - 1;
+const MAX_WORKER_ID: i64 = (1 << WORKER_ID_BITS) - 1;
+const MAX_SEQUENCE: i64 = (1 << SEQUENCE_BITS) - 1;
 
-const TIMESTAMP_SHIFT: u64 = WORKER_ID_BITS + SEQUENCE_BITS;
-const WORKER_ID_SHIFT: u64 = SEQUENCE_BITS;
+const TIMESTAMP_SHIFT: i64 = WORKER_ID_BITS + SEQUENCE_BITS;
+const WORKER_ID_SHIFT: i64 = SEQUENCE_BITS;
 
 pub struct IdGen {
-    worker_id: u64,
-    sequence: AtomicU64,
-    last_timestamp: AtomicU64,
+    worker_id: i64,
+    sequence: AtomicI64,
+    last_timestamp: AtomicI64,
 }
 
 impl IdGen {
-    const fn new(worker_id: u64) -> Self {
+    const fn new(worker_id: i64) -> Self {
         assert!(worker_id <= MAX_WORKER_ID, "Invalid worker ID");
 
         Self {
             worker_id,
-            sequence: AtomicU64::new(0),
-            last_timestamp: AtomicU64::new(0),
+            sequence: AtomicI64::new(0),
+            last_timestamp: AtomicI64::new(0),
         }
     }
 
@@ -44,7 +44,7 @@ impl IdGen {
         unsafe { &*INSTANCE }
     }
 
-    pub fn gen(&self) -> u64 {
+    pub fn gen(&self) -> i64 {
         let mut timestamp = Self::current_timestamp();
 
         loop {
@@ -62,13 +62,13 @@ impl IdGen {
         let sequence = self.sequence.fetch_add(1, Ordering::Relaxed) & MAX_SEQUENCE;
         let id = (timestamp << TIMESTAMP_SHIFT) | (self.worker_id << WORKER_ID_SHIFT) | sequence;
 
-        id
+        id as i64
     }
 
-    pub fn current_timestamp() -> u64 {
+    pub fn current_timestamp() -> i64 {
         let start = SystemTime::now();
         let since_epoch = start.duration_since(UNIX_EPOCH).expect("SystemTime before UNIX EPOCH!");
 
-        since_epoch.as_millis() as u64
+        since_epoch.as_millis() as i64
     }
 }

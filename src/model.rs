@@ -1,42 +1,111 @@
-use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use serde::{Deserialize, Serialize, Serializer};
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumIter, EnumString};
+use scylla::FromRow;
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
+use scylla::_macro_internal::{FromRowError, Row};
+use scylla::transport::session::TypedRowIter;
 
 use crate::id::IdGen;
+use crate::scylla::{Op, Quoted};
 
-#[derive(Debug, EnumIter, Serialize, Deserialize)]
+#[derive(Debug, Display)]
+#[derive(PartialEq)]
 #[derive(Copy, Clone)]
-#[repr(i8)]
-pub enum Transaction {
-    // #[serde(rename = "出金")]
-    Withdrawal,
-    // #[serde(rename = "入金")]
-    Deposit,
-    // Unknown,
+#[derive(EnumIter, EnumString)]
+#[derive(Serialize, Deserialize)]
+#[derive(FromPrimitive, ToPrimitive)]
+pub enum Side {
+    All = 0,
+    // 商户->用户
+    MU = 1,
+    // 用户->商户
+    UM = -1,
 }
 
-#[derive(Debug, EnumIter, Serialize, Deserialize)]
+impl<'a> Quoted for &'a Side {
+    fn is_quoted() -> bool {
+        true
+    }
+}
+
+impl Quoted for Side {
+    fn is_quoted() -> bool {
+        true
+    }
+}
+
+impl Into<String> for Side {
+    fn into(self) -> String {
+        self.to_string()
+    }
+}
+
+#[derive(Debug, Display)]
 #[derive(Copy, Clone)]
-pub enum Currency {
-    // #[serde(rename = "CNY")]
+#[derive(EnumIter, EnumString)]
+#[derive(Serialize, Deserialize)]
+#[derive(FromPrimitive, ToPrimitive)]
+pub enum Ccy {
     CNY,
-    // #[serde(rename = "USD")]
     USD,
-    // #[serde(rename = "EUR")]
     EUR,
-    // #[serde(rename = "BTC")]
     BTC,
-    // Unknown,
+}
+
+impl Into<String> for Ccy {
+    fn into(self) -> String {
+        self.to_string()
+    }
+}
+
+impl<'a> Quoted for &'a Ccy {
+    fn is_quoted() -> bool {
+        true
+    }
+}
+
+impl Quoted for Ccy {
+    fn is_quoted() -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Order {
-    pub oid: u64,
-    pub txn: Transaction,
-    pub ccy: Currency,
+    pub oid: i64,
+    pub side: Side,
+    pub ccy: Ccy,
+    pub mch: i64,
+    pub usr: i64,
     pub amt: String,
+    pub ctm: i64,
     pub rmk: String,
-    pub ctm: u64,
+}
+
+impl FromRow for Order {
+    fn from_row(row: Row) -> Result<Self, FromRowError> {
+        let oid = row.columns[0].as_ref().unwrap().as_bigint().unwrap();
+        let side = Side::from_str(row.columns[1].as_ref().unwrap().as_text().unwrap()).unwrap();
+        let ccy = Ccy::from_str(row.columns[2].as_ref().unwrap().as_text().unwrap()).unwrap();
+        let mch = row.columns[3].as_ref().unwrap().as_bigint().unwrap();
+        let usr = row.columns[4].as_ref().unwrap().as_bigint().unwrap();
+        let amt = row.columns[5].as_ref().unwrap().as_text().unwrap().to_string();
+        let rmk = row.columns[6].as_ref().unwrap().as_text().unwrap().to_string();
+        let ctm = row.columns[7].as_ref().unwrap().as_bigint().unwrap();
+        Ok(Order {
+            oid,
+            side,
+            ccy,
+            mch,
+            usr,
+            amt,
+            rmk,
+            ctm,
+        })
+    }
 }
 
 impl Order {
@@ -45,16 +114,18 @@ impl Order {
 
         for _ in 0..cnt {
             let oid = IdGen::ins().gen();
-            let txn = fastrand::choice(Transaction::iter()).unwrap();
-            let ccy = fastrand::choice(Currency::iter()).unwrap();
+            let side = fastrand::choice(Side::iter()).unwrap();
+            let ccy = fastrand::choice(Ccy::iter()).unwrap();
             let amt = fastrand::u128(1..=1_000_000_000).to_string();
-            let rmt = oid.to_string();
+            let rmk = oid.to_string();
             let ctm = IdGen::current_timestamp();
 
             let order = Order {
                 oid,
-                txn,
+                side,
                 ccy,
+                mch: 0,
+                usr: 0,
                 amt,
                 rmk,
                 ctm,
@@ -70,8 +141,8 @@ impl Order {
 #[derive(Deserialize)]
 #[derive(Debug)]
 pub struct AddOrderReq {
-    pub txn: Transaction,
-    pub ccy: Currency,
+    pub tar: i64,
+    pub ccy: Ccy,
     pub amt: String,
     pub rmk: String,
 }
@@ -82,92 +153,72 @@ pub type AddOrderRsp = Order;
 #[derive(Debug)]
 pub struct GetOrderByOIdReq {
     // 指定订单ID
-    pub oid: u64,
+    pub oid: i64,
 }
 
 #[derive(Deserialize)]
 #[derive(Debug)]
 pub struct GetOrderByOIdsReq {
     // 指定订单ID
-    pub oid: Vec<u64>,
+    pub oids: Vec<i64>,
     // 是否反方向
-    pub reverse: bool,
+    pub reverse: Option<bool>,
 }
 
 #[derive(Deserialize)]
 #[derive(Debug)]
-pub struct GetOrderByEUReq {
+pub struct GetOrderByUsrReq {
     // 终端用户
-    pub usr: u64,
+    pub usr: i64,
 
-    // 指定货币&方向
-    pub ccy: Currency,
-    pub txn: Transaction,
+    // 指定货币
+    pub ccy: Option<Vec<Ccy>>,
+
+    // 指定方向
+    pub side: Option<Side>,
 
     // 时间范围指定
-    pub tm_start: u64,
-    pub tm_end: u64,
+    pub tm_start: Option<i64>,
+    pub tm_end: Option<i64>,
 
     // 批量查询选项
     // 查询数量
-    pub limit: usize,
-    // 从那个ID开始查起
-    pub from_oid: u64,
+    pub limit: Option<usize>,
+    // 从指定位置开始
+    pub cursor: Option<String>,
     // 是否反方向
-    pub reverse: bool,
+    pub reverse: Option<bool>,
 }
 
 #[derive(Deserialize)]
 #[derive(Debug)]
 pub struct GetOrderByMCHReq {
     // 商户
-    pub mch: u64,
+    pub mch: i64,
 
-    // 指定货币&方向
-    pub ccy: Currency,
-    pub txn: Transaction,
+    // 指定货币
+    pub ccy: Option<Vec<Ccy>>,
+
+    // 指定方向
+    pub side: Option<Side>,
 
     // 时间范围指定
-    pub tm_start: u64,
-    pub tm_end: u64,
+    pub tm_start: Option<i64>,
+    pub tm_end: Option<i64>,
 
     // 批量查询选项
     // 查询数量
-    pub limit: usize,
-    // 从那个ID开始查起
-    pub from_oid: u64,
+    pub limit: Option<usize>,
+    // 从指定位置开始
+    pub cursor: Option<String>,
     // 是否反方向
-    pub reverse: bool,
-}
-
-#[derive(Deserialize)]
-#[derive(Debug)]
-pub struct GetOrderReq {
-    // 终端用户
-    pub usr: u64,
-
-    // 指定货币&方向
-    pub ccy: Currency,
-    pub txn: Transaction,
-
-    // 指定订单ID
-    pub oid: u64,
-
-    // 商户
-    pub mch: u64,
-
-    // 时间范围指定
-    pub start: u64,
-    pub end: u64,
-
-    // 批量查询选项
-    // 查询数量
-    pub limit: usize,
-    // 从那个ID开始查起
-    pub from_oid: u64,
-    // 是否反方向
-    pub reverse: bool,
+    pub reverse: Option<bool>,
 }
 
 #[derive(Serialize)]
-pub struct GetOrderRsp(Vec<Order>);
+#[derive(Default)]
+pub struct GetOrderRsp {
+    pub ords: Vec<Order>,
+    // 游标, 用于翻页时位置记录
+    pub cursor: String,
+}

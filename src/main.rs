@@ -12,8 +12,11 @@ use ntex::web;
 async fn main() -> std::io::Result<()> {
     web::HttpServer::new(|| {
         web::App::new()
-            .service(handler::get_order)
             .service(handler::add_order)
+            .service(handler::get_order_by_id)
+            .service(handler::get_order_by_ids)
+            .service(handler::get_order_by_usr)
+            .service(handler::get_order_by_mch)
     })
         .bind(("0.0.0.0", 8081))?
         .run()
