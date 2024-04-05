@@ -37,6 +37,12 @@ impl Quoted for Side {
     }
 }
 
+impl Default for Side {
+    fn default() -> Self {
+        Side::All
+    }
+}
+
 impl Into<String> for Side {
     fn into(self) -> String {
         self.to_string()
@@ -73,7 +79,14 @@ impl Quoted for Ccy {
     }
 }
 
+impl Default for Ccy {
+    fn default() -> Self {
+        Ccy::CNY
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Order {
     pub oid: i64,
     pub side: Side,

@@ -1,11 +1,13 @@
 use std::borrow::Cow;
-use std::fmt::{Display};
+use std::fmt::{Display, format};
 use std::io;
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use ntex::web;
 use ntex::web::types::Json;
 use scylla::{Session, SessionBuilder};
+use scylla::transport::errors::QueryError;
+use serde::Serialize;
 use crate::model::{GetOrderByOIdReq, GetOrderRsp, Order};
 
 lazy_static! {
@@ -175,12 +177,6 @@ impl Query {
         }
     }
 
-    // pub fn select(&mut self, field: impl Into<String>) -> &mut Self
-    // {
-    //     self.select_clause.get_or_insert_with(|| vec![]).push(field.into());
-    //     self
-    // }
-
     pub fn selects<'a, T>(&mut self, fields: T) -> &mut Self
         where
             T: IntoIterator,
@@ -190,12 +186,6 @@ impl Query {
         self.select_clause.get_or_insert_with(Vec::new).extend(fields.into_iter().map(Cow::into_owned));
         self
     }
-
-    // pub fn where_(&mut self, op: impl Into<String>) -> &mut Self
-    // {
-    //     self.where_clause.get_or_insert_with(|| vec![]).push(op.into());
-    //     self
-    // }
 
     pub fn wheres<'a, T>(&mut self, ops: T) -> &mut Self
         where
@@ -209,12 +199,6 @@ impl Query {
         self
     }
 
-    // pub fn group(&mut self, field: impl Into<String>) -> &mut Self
-    // {
-    //     self.group_by_clause.get_or_insert_with(|| vec![]).push(field.into());
-    //     self
-    // }
-
     pub fn groups<'a, T>(&mut self, fields: T) -> &mut Self
         where
             T: IntoIterator,
@@ -224,12 +208,6 @@ impl Query {
         self.group_by_clause.get_or_insert_with(Vec::new).extend(fields.into_iter().map(Cow::into_owned));
         self
     }
-
-    // pub fn order(&mut self, ord: impl Into<String>) -> &mut Self
-    // {
-    //     self.order_by_clause.get_or_insert_with(|| vec![]).push(ord.into());
-    //     self
-    // }
 
     pub fn orders<'a, T>(&mut self, ops: T) -> &mut Self
         where
@@ -358,5 +336,118 @@ fn test_query() {
     q.timeout(01);
 
     let cql: String = (&q).into();
+    println!("{}", cql)
+}
+
+#[derive(Default)]
+pub struct Insert
+{
+    table_name: String,
+    if_not_exists: bool,
+    value: String,
+    timestamp: Option<i64>,
+    ttl: Option<i64>,
+    timeout: Option<i64>,
+}
+
+impl Insert
+{
+    pub fn new(keyspace: impl Into<String>, tbl: impl Into<String>, val: &impl Serialize) -> Self {
+        Insert {
+            table_name: format!("{}.{}", keyspace.into(), tbl.into()),
+            value: serde_json::to_string(val).unwrap(),
+            ..Default::default()
+        }
+    }
+
+    pub fn if_not_exists(&mut self) -> &mut Self
+    {
+        self.if_not_exists = true;
+        self
+    }
+
+    pub fn timestamp(&mut self, i: i64) -> &mut Self
+    {
+        self.timestamp = Some(i);
+        self
+    }
+
+    pub fn ttl(&mut self, i: i64) -> &mut Self
+    {
+        self.ttl = Some(i);
+        self
+    }
+
+    pub fn timeout(&mut self, i: i64) -> &mut Self
+    {
+        self.timeout = Some(i);
+        self
+    }
+
+    pub async fn finish(&self) -> Result<(), QueryError>
+    {
+        let stmt: String = self.into();
+        let session = get_scylla_session().await;
+        // TODO: 使用 execute
+        let ret = session.query(stmt,()).await;
+        if ret.is_err() {
+            return Err(ret.unwrap_err());
+        }
+
+        Ok(())
+    }
+}
+
+impl From<&Insert> for String {
+    fn from(ins: &Insert) -> Self {
+        let mut clause = vec!["INSERT INTO".into()];
+        clause.push(ins.table_name.as_str().into());
+        clause.push("JSON".into());
+        clause.push(format!("'{}'", ins.value));
+        clause.push("DEFAULT UNSET".into());
+        if ins.if_not_exists {
+            clause.push("IF NOT EXISTS".into());
+        }
+
+        let mut has_update_parameter = false;
+        if let Some(i) = ins.timestamp {
+            has_update_parameter = true;
+            clause.push(format!("USING TIMESTAMP {i}"))
+        }
+
+        if let Some(i) = ins.ttl {
+            if !has_update_parameter {
+                clause.push("USING".into())
+            }
+
+            clause.push(format!("TTL {i}"));
+            has_update_parameter = true;
+        }
+
+        if let Some(i) = ins.timeout {
+            if !has_update_parameter {
+                clause.push("USING".into())
+            }
+
+            clause.push(format!("TIMEOUT {i}"));
+            has_update_parameter = true;
+        }
+
+        clause.join(" ")
+    }
+}
+
+#[test]
+fn test_insert() {
+    let mut ins = Insert::new("biz","orders", &Order{
+        ..Default::default()
+    });
+
+    ins.ttl(1000);
+    ins.timestamp(12);
+    ins.if_not_exists();
+    ins.timeout(123);
+
+    let cql: String = (&ins).into();
     println!("{}", cql)
 }

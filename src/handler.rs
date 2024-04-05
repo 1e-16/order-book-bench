@@ -3,7 +3,7 @@ use ntex::web;
 use tokio::signal::windows::ctrl_break;
 use web::types::*;
 use crate::id::IdGen;
-use crate::scylla::{get_scylla_session, Query};
+use crate::scylla::{get_scylla_session, Insert, Query};
 use crate::scylla::Op::{Eq, GtE, In, LtE};
 
 use crate::model::*;
@@ -137,34 +137,17 @@ async fn add_order(req: Json<AddOrderReq>) -> Result<impl web::Responder, web::E
     // TODO: 根据请求方角色确认side
     let side = Side::UM;
 
-    let session = get_scylla_session().await;
-    let ret = session.query(
-        "INSERT INTO biz.orders
-        (
+    let ret = Insert::new("biz", "orders", &Order{
         oid,
-        side,
-        ccy,
-        mch,
+        ctm: create_at,
         usr,
-        amt,
-        rmk,
-        ctm
-        ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?
-        )",
-        (
-            oid,
-            side.to_string(),
-            req.ccy.to_string(),
-            mch,
-            usr,
-            &req.amt,
-            &req.rmk,
-            create_at),
-    ).await;
+        mch,
+        side,
+        ..Default::default()
+    }).finish().await;
 
-    if ret.is_err() {
-        println!("Error inserting order: {:?}", ret.unwrap_err());
+    if let Err(err) = ret  {
+        println!("Error inserting order: {:?}", err);
         return Ok(web::HttpResponse::InternalServerError().finish());
     }
 
@@ -174,10 +157,58 @@ async fn add_order(req: Json<AddOrderReq>) -> Result<impl web::Responder, web::E
         ccy: req.ccy,
         mch,
         usr,
-        amt: req.amt.to_string(),
-        rmk: req.rmk.to_string(),
+        amt: req.amt.as_str().into(),
+        rmk: req.rmk.as_str().into(),
         ctm: create_at,
     };
 
     Ok(web::HttpResponse::Ok().json(&ord))
+    // if ret.is_err() {
+    //     println!("Error inserting order: {:?}", ret.unwrap_err());
+    //     return Ok(web::HttpResponse::InternalServerError().finish());
+    // }
+
+    // let session = get_scylla_session().await;
+    // let ret = session.query(
+    //     "INSERT INTO biz.orders
+    //     (
+    //     oid,
+    //     side,
+    //     ccy,
+    //     mch,
+    //     usr,
+    //     amt,
+    //     rmk,
+    //     ctm
+    //     ) VALUES (
+    //     ?, ?, ?, ?, ?, ?, ?, ?
+    //     )",
+    //     (
+    //         oid,
+    //         side.to_string(),
+    //         req.ccy.to_string(),
+    //         mch,
+    //         usr,
+    //         &req.amt,
+    //         &req.rmk,
+    //         create_at),
+    // ).await;
+    //
+    // if ret.is_err() {
+    //     println!("Error inserting order: {:?}", ret.unwrap_err());
+    //     return Ok(web::HttpResponse::InternalServerError().finish());
+    // }
+
+    // let ord = AddOrderRsp {
+    //     oid,
+    //     side,
+    //     ccy: req.ccy,
+    //     mch,
+    //     usr,
+    //     amt: req.amt.to_string(),
+    //     rmk: req.rmk.to_string(),
+    //     ctm: create_at,
+    // };
+    //
+    // Ok(web::HttpResponse::Ok().json(&ord))
 }
