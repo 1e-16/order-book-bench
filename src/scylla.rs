@@ -285,35 +285,35 @@ impl Query {
 
 impl From<&Query> for String {
     fn from(q: &Query) -> Self {
-        let mut clause = vec!["SELECT".to_string()];
+        let mut clause = vec!["SELECT".into()];
         match &q.select_clause {
             None => {
-                clause.push("*".to_string());
+                clause.push("*".into());
             }
             Some(v) => {
                 if v.len() == 0 {
-                    clause.push("*".to_string());
+                    clause.push("*".into());
                 } else {
                     clause.push(v.join(", "));
                 }
             }
         }
 
-        clause.push("FROM".to_string());
-        clause.push(q.from_clause.to_string());
+        clause.push("FROM".into());
+        clause.push(q.from_clause.as_str().into());
 
         if let Some(v) = &q.where_clause {
-            clause.push("WHERE".to_string());
+            clause.push("WHERE".into());
             clause.push(v.join(" AND "));
         }
 
         if let Some(v) = &q.group_by_clause {
-            clause.push("GROUP BY".to_string());
+            clause.push("GROUP BY".into());
             clause.push(v.join(", "));
         }
 
         if let Some(v) = &q.order_by_clause {
-            clause.push("ORDER BY".to_string());
+            clause.push("ORDER BY".into());
             clause.push(v.join(", "));
         }
 
@@ -322,15 +322,15 @@ impl From<&Query> for String {
         }
 
         if q.limit_clause > 0 {
-            clause.push(format!("PER PARTITION LIMIT {}", q.limit_clause))
+            clause.push(format!("LIMIT {}", q.limit_clause))
         }
 
         if q.allow_filtering {
-            clause.push("ALLOW FILTERING".to_string())
+            clause.push("ALLOW FILTERING".into())
         }
 
         if q.bypass_cache {
-            clause.push("BYPASS CACHE".to_string())
+            clause.push("BYPASS CACHE".into())
         }
 
         if q.timeout > 0 {
@@ -343,25 +343,13 @@ impl From<&Query> for String {
 
 #[test]
 fn test_query() {
-    let s = String::from("asd");
-    let s2 = "efd";
-
     let mut q = Query::new("biz","orders");
-    // q.select("a");
     q.selects(["b", "c", "d"]);
     q.selects(vec!["b", "c", "d"]);
-    // q.where(Op::Gt("b", 0));
-    // q.where(Op::Gt("e", s));
-    // q.where(Op::Gt("f", s2));
-    // q.where(Op::Contains("c", "asd"));
-    // q.where(Op::Lt("d", 100));
     q.wheres([Op::Lt("fff", 100)]);
     q.wheres([Op::Eq("a", "b")]);
 
-    // q.group("a");
     q.groups(["b", "c", "d"]);
-    // q.order(Ord::Desc("b"));
-    // q.order(Ord::Asc("c"));
     q.orders([Ord::Asc("e"), Ord::Desc("gbg")]);
     q.limit(10);
     q.per_partition_limit(5);
