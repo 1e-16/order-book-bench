@@ -23,6 +23,4 @@ ENV OUTPUT_DIR="/output"
 RUN cargo build --release
 
 # 将编译的输出拷贝到宿主机的 output 目录中
-CMD mkdir -p $OUTPUT_DIR && cp /
-
-app/target/release/* $OUTPUT_DIR
+CMD mkdir -p $OUTPUT_DIR && cp /app/target/release/* $OUTPUT_DIR

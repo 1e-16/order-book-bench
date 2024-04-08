@@ -1,0 +1,33 @@
+version: '3'
+services:
+  node1:
+    image: scylladb/scylla
+    container_name: node1
+    volumes:
+      - /var/lib/scylla/node1:/var/lib/scylla
+    ports:
+      - "9042:9042"
+    networks:
+      - scylla-net
+    command: --overprovisioned 1 --developer-mode 0
+
+  node2:
+    image: scylladb/scylla
+    container_name: node2
+    volumes:
+      - /var/lib/scylla/node2:/var/lib/scylla
+    networks:
+      - scylla-net
+    command: --seeds node1 --overprovisioned 1 --developer-mode 0
+
+  node3:
+    image: scylladb/scylla
+    container_name: node3
+    volumes:
+      - /var/lib/scylla/node3:/var/lib/scylla
+    networks:
+      - scylla-net
+    command: --seeds node1 --overprovisioned 1 --developer-mode 0
+
+networks:
+  scylla-net:

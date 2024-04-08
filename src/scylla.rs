@@ -1,14 +1,12 @@
 use std::borrow::Cow;
-use std::fmt::{Display, format};
+use std::fmt::{Display};
 use std::io;
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
-use ntex::web;
-use ntex::web::types::Json;
 use scylla::{Session, SessionBuilder};
 use scylla::transport::errors::QueryError;
 use serde::Serialize;
-use crate::model::{GetOrderByOIdReq, GetOrderRsp, Order};
+use crate::model::{Order};
 
 lazy_static! {
     static ref SCYLLA_SESSION: AsyncOnce<Session> = AsyncOnce::new(async {
@@ -387,9 +385,12 @@ impl Insert
     pub async fn finish(&self) -> Result<(), QueryError>
     {
         let stmt: String = self.into();
+
         let session = get_scylla_session().await;
+        println!("{}", stmt);
         // TODO: 使用 execute
         let ret = session.query(stmt,()).await;
+        println!("{:?}", ret);
         if ret.is_err() {
             return Err(ret.unwrap_err());
         }

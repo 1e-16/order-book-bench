@@ -4,12 +4,10 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString};
 use scylla::FromRow;
 use num_derive::{FromPrimitive, ToPrimitive};
-use num_traits::{FromPrimitive, ToPrimitive};
 use scylla::_macro_internal::{FromRowError, Row};
-use scylla::transport::session::TypedRowIter;
 
 use crate::id::IdGen;
-use crate::scylla::{Op, Quoted};
+use crate::scylla::{Quoted};
 
 #[derive(Debug, Display)]
 #[derive(PartialEq)]

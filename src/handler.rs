@@ -1,9 +1,7 @@
-use std::cmp::{max, min};
 use ntex::web;
-use tokio::signal::windows::ctrl_break;
 use web::types::*;
 use crate::id::IdGen;
-use crate::scylla::{get_scylla_session, Insert, Query};
+use crate::scylla::{Insert, Query};
 use crate::scylla::Op::{Eq, GtE, In, LtE};
 
 use crate::model::*;

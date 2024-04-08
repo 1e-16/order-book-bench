@@ -1,6 +1,6 @@
 // snowflake.rs
 
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -14,9 +14,9 @@ const TIMESTAMP_SHIFT: i64 = WORKER_ID_BITS + SEQUENCE_BITS;
 const WORKER_ID_SHIFT: i64 = SEQUENCE_BITS;
 
 pub struct IdGen {
-    worker_id: i64,
+    // worker_id: i64,
     sequence: AtomicI64,
-    last_timestamp: AtomicI64,
+    // last_timestamp: AtomicI64,
 }
 
 impl IdGen {
@@ -24,9 +24,9 @@ impl IdGen {
         assert!(worker_id <= MAX_WORKER_ID, "Invalid worker ID");
 
         Self {
-            worker_id,
+            // worker_id,
             sequence: AtomicI64::new(0),
-            last_timestamp: AtomicI64::new(0),
+            // last_timestamp: AtomicI64::new(0),
         }
     }
 
@@ -35,7 +35,9 @@ impl IdGen {
         static ONCE: Once = Once::new();
 
         ONCE.call_once(|| {
-            let instance = IdGen::new(0);
+            let mut instance = IdGen::new(0);
+            instance.sequence = AtomicI64::new(IdGen::current_timestamp());
+
             unsafe {
                 INSTANCE = std::mem::transmute(Box::new(instance));
             }
@@ -45,24 +47,23 @@ impl IdGen {
     }
 
     pub fn gen(&self) -> i64 {
-        let mut timestamp = Self::current_timestamp();
-
-        loop {
-            let last_timestamp = self.last_timestamp.load(Ordering::Relaxed);
-
-            if timestamp < last_timestamp {
-                timestamp = last_timestamp;
-            }
-
-            if last_timestamp == self.last_timestamp.compare_exchange(last_timestamp, timestamp, Ordering::Relaxed, Ordering::Relaxed).unwrap_or_else(|x| x) {
-                break;
-            }
-        }
-
-        let sequence = self.sequence.fetch_add(1, Ordering::Relaxed) & MAX_SEQUENCE;
-        let id = (timestamp << TIMESTAMP_SHIFT) | (self.worker_id << WORKER_ID_SHIFT) | sequence;
-
-        id as i64
+        // let mut timestamp = Self::current_timestamp();
+        //
+        // loop {
+        //     let last_timestamp = self.last_timestamp.load(Ordering::Relaxed);
+        //
+        //     if timestamp < last_timestamp {
+        //         timestamp = last_timestamp;
+        //     }
+        //
+        //     if last_timestamp == self.last_timestamp.compare_exchange(last_timestamp, timestamp, Ordering::Relaxed, Ordering::Relaxed).unwrap_or_else(|x| x) {
+        //         break;
+        //     }
+        // }
+        //
+        // let sequence = self.sequence.fetch_add(1, Ordering::Relaxed) & MAX_SEQUENCE;
+        // let id = (timestamp << TIMESTAMP_SHIFT) | (self.worker_id << WORKER_ID_SHIFT) | sequence;
+        self.sequence.fetch_add(1, Ordering::Relaxed)
     }
 
     pub fn current_timestamp() -> i64 {

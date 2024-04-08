@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS orders
     amt  text,
     rmk  text,
     ctm  bigint,
-    PRIMARY KEY (usr, ctm, ccy, side, mch)
+    PRIMARY KEY (usr, ctm, ccy, side, mch, oid)
 );
 -- select * from orders where usr = 0 and ctm > 0 and ctm < 100 and ccy in ('a') and side in ('a', 'b') allow filtering;
 
@@ -29,5 +29,6 @@ WHERE mch IS NOT NULL
   AND side IS NOT NULL
   AND ctm IS NOT NULL
   AND usr IS NOT NULL
-PRIMARY KEY (mch, ctm, ccy, side, usr);
+  AND oid IS NOT NULL
+PRIMARY KEY (mch, ctm, ccy, side, usr, oid);
 -- select * from orders where usr = 0 and ctm > 0 and ctm < 100 and ccy in ('a') and side in ('a', 'b') allow filtering;
